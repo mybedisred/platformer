@@ -196,8 +196,78 @@ public class Level {
 	//#############################################################################################################
 	//Your code goes here! 
 	//Please make sure you read the rubric/directions carefully and implement the solution recursively!
+
+	//pre condition: col and row are within indexes of map.getTiles(), map has been created, 0<=fullness<=3
+	//post condition: recursively calls such that the source block is replaced with a full block of water, then water flows either left, right, or down, depending on conditions
 	private void water(int col, int row, Map map, int fullness) {
-		
+		Tile[][] tiles = map.getTiles();
+    	int maxCols = tiles.length;
+    	int maxRows = tiles[0].length;
+
+		//in case input out of bounds, or cant change to water stop
+    	if (col < 0 || col >= maxCols || row < 0 || row >= maxRows) return;
+    	if (tiles[col][row] instanceof Water || tiles[col][row].isSolid()) return;
+
+		if (fullness == 0 && row + 1 < maxRows && tiles[col][row + 1].isSolid()){
+			fullness = 3;
+		}
+
+    	String imageName;
+    	if (fullness == 3){
+			imageName = "Full_water";
+		}
+    	else if (fullness == 2){
+			imageName = "Half_water";
+		}
+    	else if (fullness == 1){
+			imageName = "Quarter_water";
+		}
+    	else{
+			imageName = "Falling_water";
+		}
+
+    	Water w = new Water(col, row, tileSize, tileset.getImage(imageName), this, fullness);
+    	map.addTile(col, row, w);
+		//pours down
+    	if (row + 1 < maxRows) {
+        	Tile below = tiles[col][row + 1];
+        	if (!below.isSolid() && !(below instanceof Water)) {
+            	water(col, row + 1, map, 0);
+            	return; 
+        	}
+    	}
+
+		//flows right
+    	if (fullness > 0) {
+        	if (col + 1 < maxCols) {
+            	Tile right = tiles[col + 1][row];
+            	if (!right.isSolid() && !(right instanceof Water)) {
+                	boolean isAirBelow = (row + 1 < maxRows && !tiles[col + 1][row + 1].isSolid() && !(tiles[col + 1][row + 1] instanceof Water));
+					if (isAirBelow){
+                    	water(col + 1, row, map, 1); 
+						water(col + 1, row + 1, map, 0);
+					}
+                	 else {
+                    	water(col + 1, row, map, Math.max(fullness - 1, 1));
+                	}
+            	}
+        	}
+
+			//flows left
+        	if (col - 1 >= 0) {
+            	Tile left = tiles[col - 1][row];
+            	if (!left.isSolid() && !(left instanceof Water)) {
+                	boolean isAirBelow = (row + 1 < maxRows && !tiles[col - 1][row + 1].isSolid() && !(tiles[col - 1][row + 1] instanceof Water));
+                    if (isAirBelow){
+						water(col - 1, row, map, 1); 
+						water(col - 1, row + 1, map, 0);
+                	} 
+					else {
+                    	water(col - 1, row, map, Math.max(fullness - 1, 1));
+                	}
+            	}
+        	}
+    	}
 	}
 
 

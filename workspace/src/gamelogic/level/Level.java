@@ -2,7 +2,9 @@ package gamelogic.level;
 
 import java.awt.Graphics;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 import gameengine.PhysicsObject;
 import gameengine.graphics.Camera;
@@ -169,8 +171,8 @@ public class Level {
 				if (flowers.get(i).getHitbox().isIntersecting(player.getHitbox())) {
 					if(flowers.get(i).getType() == 1)
 						water(flowers.get(i).getCol(), flowers.get(i).getRow(), map, 3);
-//					else
-//						addGas(flowers.get(i).getCol(), flowers.get(i).getRow(), map, 20, new ArrayList<Gas>());
+					else
+						addGas(flowers.get(i).getCol(), flowers.get(i).getRow(), map, 20, new ArrayList<Gas>());
 					flowers.remove(i);
 					i--;
 				}
@@ -208,6 +210,7 @@ public class Level {
     	if (col < 0 || col >= maxCols || row < 0 || row >= maxRows) return;
     	if (tiles[col][row] instanceof Water || tiles[col][row].isSolid()) return;
 
+		//full block of falls above solid block
 		if (fullness == 0 && row + 1 < maxRows && tiles[col][row + 1].isSolid()){
 			fullness = 3;
 		}
@@ -270,36 +273,128 @@ public class Level {
     	}
 	}
 
+	private void addGas(int col, int row, Map map, int numSquaresToFill, ArrayList<Gas> placedThisRound) {
+		Tile[][] tiles = map.getTiles();
+    	int tileSize = this.tileSize;
+    	int maxCols = tiles.length;
+    	int maxRows = tiles[0].length;
 
+    	//replace flower
+    	Gas firstGas = new Gas(col, row, tileSize, tileset.getImage("GasOne"), this, 0);
+    	map.addTile(col, row, firstGas);
+    	placedThisRound.add(firstGas);
+    	int tilesPlaced = 1;
 
-	public void draw(Graphics g) {
-		g.translate((int) -camera.getX(), (int) -camera.getY());
+    	//this is the order in which gas is placed around a central tile
+    	int[][] howToExpand = {
+        	{0, -1},   // top middle
+        	{1, -1},   // top right
+        	{-1, -1},  // top left
+        	{1, 0},    // middle right
+        	{-1, 0},   // middle left
+        	{0, 1},    // bottom middle
+        	{1, 1},    // bottom right
+        	{-1, 1}    // bottom left
+    	};
 
-		// Draw the map
-		for (int x = 0; x < map.getWidth(); x++) {
-			for (int y = 0; y < map.getHeight(); y++) {
-				Tile tile = map.getTiles()[x][y];
-				if (tile == null)
-					continue;
-				if (camera.isVisibleOnCamera(tile.getX(), tile.getY(), tile.getSize(), tile.getSize()))
-					tile.draw(g);
-			}
-		}
+    	int index = 0;
+    	while (index < placedThisRound.size() && tilesPlaced < numSquaresToFill) {
+        	Gas currentGas = placedThisRound.get(index);
+        	int c = currentGas.getCol();
+        	int r = currentGas.getRow();
 
-		// Draw the enemies
-		for (int i = 0; i < enemies.length; i++) {
-			enemies[i].draw(g);
-		}
+        	//start expanding in the way the rules outline
+        	for (int[] direction : howToExpand) {
+            	int newCol = c + direction[0];
+            	int newRow = r + direction[1];
+				
+				//check if new tile in bounds
+            	if (newCol >= 0 && newCol < maxCols && newRow >= 0 && newRow < maxRows) {
 
-		// Draw the player
-		player.draw(g);
+            		Tile nextTile = tiles[newCol][newRow];
 
-		// used for debugging
-		if (Camera.SHOW_CAMERA)
-			camera.draw(g);
+            		//place gas if tile is null or not solid and not already gas
+            		if ((nextTile == null || !nextTile.isSolid()) && !(nextTile instanceof Gas)) {
+                		Gas newGas = new Gas(newCol, newRow, tileSize, tileset.getImage("GasOne"), this, 0);
+                		map.addTile(newCol, newRow, newGas);
+                		placedThisRound.add(newGas);
+                		tilesPlaced++;
 
-		g.translate((int) +camera.getX(), (int) +camera.getY());
+						//stop when placed as many tiles as specified
+                		if (tilesPlaced >= numSquaresToFill) {
+                    		return;  
+                		}
+            		}
+				}
+        	}
+
+        	index++; 
+    	}
 	}
+
+public void draw(Graphics g) {
+	   	 g.translate((int) -camera.getX(), (int) -camera.getY());
+	   	 // Draw the map
+	   	 for (int x = 0; x < map.getWidth(); x++) {
+	   		 for (int y = 0; y < map.getHeight(); y++) {
+	   			 Tile tile = map.getTiles()[x][y];
+	   			 if (tile == null)
+	   				 continue;
+	   			 if(tile instanceof Gas) {
+	   				
+	   				 int adjacencyCount =0;
+	   				 for(int i=-1; i<2; i++) {
+	   					 for(int j =-1; j<2; j++) {
+	   						 if(j!=0 || i!=0) {
+	   							 if((x+i)>=0 && (x+i)<map.getTiles().length && (y+j)>=0 && (y+j)<map.getTiles()[x].length) {
+	   								 if(map.getTiles()[x+i][y+j] instanceof Gas) {
+	   									 adjacencyCount++;
+	   								 }
+	   							 }
+	   						 }
+	   					 }
+	   				 }
+	   				 if(adjacencyCount == 8) {
+	   					 ((Gas)(tile)).setIntensity(2);
+	   					 tile.setImage(tileset.getImage("GasThree"));
+	   				 }
+	   				 else if(adjacencyCount >5) {
+	   					 ((Gas)(tile)).setIntensity(1);
+	   					tile.setImage(tileset.getImage("GasTwo"));
+	   				 }
+	   				 else {
+	   					 ((Gas)(tile)).setIntensity(0);
+	   					tile.setImage(tileset.getImage("GasOne"));
+	   				 }
+	   			 }
+	   			 if (camera.isVisibleOnCamera(tile.getX(), tile.getY(), tile.getSize(), tile.getSize()))
+	   				 tile.draw(g);
+	   		 }
+	   	 }
+
+
+	   	 // Draw the enemies
+	   	 for (int i = 0; i < enemies.length; i++) {
+	   		 enemies[i].draw(g);
+	   	 }
+
+
+	   	 // Draw the player
+	   	 player.draw(g);
+
+
+
+
+	   	 // used for debugging
+	   	 if (Camera.SHOW_CAMERA)
+	   		 camera.draw(g);
+	   	 g.translate((int) +camera.getX(), (int) +camera.getY());
+	    }
+
+	
+
+
+
 
 	// --------------------------Die-Listener
 	public void throwPlayerDieEvent() {

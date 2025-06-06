@@ -314,7 +314,8 @@ public class Level {
         	}
     	}
 	}
-
+	//PRE CONDITION: PLAYER HITS A SPECIAL FLOWER
+	//POST CONDITION: GAS IS DRAWN IN RECTANGLE SHAPE AND PLAYER SLOWS DOWN
 	private void addGas(int col, int row, Map map, int numSquaresToFill, ArrayList<Gas> placedThisRound) {
 		Tile[][] tiles = map.getTiles();
     	int tileSize = this.tileSize;

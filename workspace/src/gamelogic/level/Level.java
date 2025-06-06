@@ -25,6 +25,9 @@ import gamelogic.tiles.Water;
 
 public class Level {
 
+	private long timerStart = 0;
+	private long timerMax = 60;
+
 	private LevelData leveldata;
 	private Map map;
 	private Enemy[] enemies;
@@ -37,6 +40,8 @@ public class Level {
 
 	private ArrayList<Enemy> enemiesList = new ArrayList<>();
 	private ArrayList<Flower> flowers = new ArrayList<>();
+	private ArrayList<Water> waters = new ArrayList<>();
+	private ArrayList<Gas> gasses = new ArrayList<>();
 
 	private List<PlayerDieListener> dieListeners = new ArrayList<>();
 	private List<PlayerWinListener> winListeners = new ArrayList<>();
@@ -55,6 +60,7 @@ public class Level {
 		height = mapdata.getHeight();
 		tileSize = mapdata.getTileSize();
 		restartLevel();
+		timerStart = System.currentTimeMillis();
 	}
 
 	public LevelData getLevelData(){
@@ -64,6 +70,8 @@ public class Level {
 	public void restartLevel() {
 		int[][] values = mapdata.getValues();
 		Tile[][] tiles = new Tile[width][height];
+
+		resetTimer();
 
 		for (int x = 0; x < width; x++) {
 			int xPosition = x;
@@ -186,11 +194,44 @@ public class Level {
 				}
 			}
 
+			//update the water
+			for (int i = 0; i < waters.size(); i++){
+				waters.get(i).update(tslf);
+				if (player.getHitbox().isIntersecting(waters.get(i).getHitbox())){
+					player.setWalkSpeed(200);	
+				}
+				else {
+					player.setWalkSpeed(400);
+				}
+			}
+
+			//update the gas
+			for (int i = 0; i < gasses.size(); i++){
+				gasses.get(i).update(tslf);
+				if (player.getHitbox().isIntersecting(gasses.get(i).getHitbox())){
+					player.setJumpPower(2000);
+				}
+				else{
+					player.setJumpPower(1350);
+				}
+			}
+
 			// Update the map
 			map.update(tslf);
 
 			// Update the camera
 			camera.update(tslf);
+			
+
+			//timer stuff
+			if (timerStart != 0){
+				long elapsedTimeSeconds =  (System.currentTimeMillis() - timerStart)/1000;
+				if (elapsedTimeSeconds >= timerMax && !playerDead){
+					this.onPlayerDeath();
+					timerStart = 0;
+				}
+			
+			}
 		}
 	}
 	
@@ -231,6 +272,7 @@ public class Level {
 
     	Water w = new Water(col, row, tileSize, tileset.getImage(imageName), this, fullness);
     	map.addTile(col, row, w);
+		waters.add(w);
 		//pours down
     	if (row + 1 < maxRows) {
         	Tile below = tiles[col][row + 1];
@@ -281,6 +323,7 @@ public class Level {
 
     	//replace flower
     	Gas firstGas = new Gas(col, row, tileSize, tileset.getImage("GasOne"), this, 0);
+		gasses.add(firstGas);
     	map.addTile(col, row, firstGas);
     	placedThisRound.add(firstGas);
     	int tilesPlaced = 1;
@@ -316,6 +359,7 @@ public class Level {
             		//place gas if tile is null or not solid and not already gas
             		if ((nextTile == null || !nextTile.isSolid()) && !(nextTile instanceof Gas)) {
                 		Gas newGas = new Gas(newCol, newRow, tileSize, tileset.getImage("GasOne"), this, 0);
+						gasses.add(newGas);
                 		map.addTile(newCol, newRow, newGas);
                 		placedThisRound.add(newGas);
                 		tilesPlaced++;
@@ -331,6 +375,12 @@ public class Level {
         	index++; 
     	}
 	}
+
+//precondition: player died
+//post condition: restarts timer
+private void resetTimer() {
+    this.timerStart = System.currentTimeMillis();
+}
 
 public void draw(Graphics g) {
 	   	 g.translate((int) -camera.getX(), (int) -camera.getY());
@@ -389,6 +439,15 @@ public void draw(Graphics g) {
 	   	 if (Camera.SHOW_CAMERA)
 	   		 camera.draw(g);
 	   	 g.translate((int) +camera.getX(), (int) +camera.getY());
+
+		 //timer display
+		 if (timerStart != 0) {
+    		long remaining = Math.max(0, (timerMax * 1000) - (System.currentTimeMillis() - timerStart));
+    		long secondsRemaining = remaining / 1000;
+    		g.setColor(java.awt.Color.RED);
+			
+    		g.drawString("Time: " + secondsRemaining, 600, 40);
+		}
 	    }
 
 	

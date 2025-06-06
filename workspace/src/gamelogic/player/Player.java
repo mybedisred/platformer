@@ -22,6 +22,12 @@ public class Player extends PhysicsObject{
 		int offset =(int)(level.getLevelData().getTileSize()*0.1); //hitbox is offset by 10% of the player size.
 		this.hitbox = new RectHitbox(this, offset,offset, width -offset, height - offset);
 	}
+	public void setWalkSpeed(float newWalkSpeed){
+		walkSpeed = newWalkSpeed;
+	}
+	public void setJumpPower(float newJumpPower){
+		jumpPower = newJumpPower;
+	}
 
 	@Override
 	public void update(float tslf) {
